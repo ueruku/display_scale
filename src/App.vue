@@ -1,121 +1,104 @@
 <template>
-  <div class="root">
-    <div class="input">
+  <div>
+    <div class="float">
+      <div>
         ホスト
         <label>横解像度(pixel)</label>
-        <input v-model="host.pixel.width" v-on:change="simulateContentPixel">
+        <input v-model="host.width" @change="simulateContentPixel" />
         <label>縦解像度(pixel)</label>
-        <input v-model="host.pixel.height" v-on:change="simulateContentPixel">
+        <input v-model="host.height" @change="simulateContentPixel" />
         <label>対角線長(inch)</label>
-        <input v-model="host.DiagonalLength" v-on:change="simulateContentPixel">
+        <input v-model="host.diagonalLength" @change="simulateContentPixel" />
         <label>ppi</label>
-        <input v-model="host.ppi" disabled>
-        <hr>
+        <input :value="host.ppi.toFixed(2)" disabled />
+        <label>横幅(cm)</label>
+        <input :value="(host.widthLenght * 2.54).toFixed(2)" disabled />
+        <label>縦幅(cm)</label>
+        <input :value="(host.heightLenght * 2.54).toFixed(2)" disabled />
+      </div>
+      <div>
         コンテンツ
         <label>横解像度</label>
-        <input v-model="content.pixel.width" v-on:change="simulateContentPixel">
+        <input v-model="content.width" @change="simulateContentPixel" />
         <label>縦解像度</label>
-        <input v-model="content.pixel.height" v-on:change="simulateContentPixel">
+        <input v-model="content.height" @change="simulateContentPixel" />
         <label>対角線長(inch)</label>
-        <input v-model="content.DiagonalLength" v-on:change="simulateContentPixel">
+        <input v-model="content.diagonalLength" @change="simulateContentPixel" />
         <label>ppi</label>
-        <input v-model="content.ppi" disabled>
+        <input :value="content.ppi.toFixed(2)" disabled>
+        <label>横幅(cm)</label>
+        <input :value="(content.widthLenght * 2.54).toFixed(2)" disabled />
+        <label>縦幅(cm)</label>
+        <input :value="(content.heightLenght * 2.54).toFixed(2)" disabled />
+      </div>
     </div>
-    <div class="preview">
-        <div v-bind:style="boxStyle">
-        </div>
+    <div class="center">
+      <div :style="boxStyle"></div>
     </div>
   </div>
 </template>
+<script setup lang="ts">
+import { reactive, computed, onBeforeMount } from 'vue'
+import Monitor from './classes/Monitor.js'
 
-<script>
-export default {
-  name: 'App',
-  data () {
-    return {
-      // ホストの画面サイズ情報
-      host:{
-        // 解像度
-        pixel: {
-          width:1920,
-          height:1080
-        },
-        // 対角線長
-        DiagonalLength: 21.5,
-        ppi: 93,
-      },
-      // コンテンツの画面サイズ情報
-      content:{
-        pixel: {
-          width:1900,
-          height:1200
-        },
-        DiagonalLength: 10.0,
-        ppi: 217,
-      },
-      // 仮想上のピクセル
-      simulatedContentPixel:{
-        width:0,
-        height:0
-      },
-    }
-  },
-  // 算出プロパティ
-  computed: {
-    /** ボックスのスタイル */
-    boxStyle() {
-      return  {
-          width: this.simulatedContentPixel.width + 'px',
-          height:this.simulatedContentPixel.height + 'px',
-          margin:'50px auto',
-          border:'solid 1px'
-      };
-    }
-  },
-  // Vueマウント前イベント
-  beforeMount(){
-    // ディスプレイの解像度をセット
-    this.host.pixel.width = window.parent.screen.width;
-    this.host.pixel.height = window.parent.screen.height;
+// ホストの画面サイズ情報
+const host = reactive(new Monitor(1920, 1080, 21.4));
+// コンテンツの画面サイズ情報
+const content = reactive(new Monitor(1920, 1080, 7.0));
 
-    // 一応初期値でシミュレートしとく
-    this.simulateContentPixel();
-  },
-  methods: {
-    /** コンテンツのサイズをシミュレートする */
-    simulateContentPixel() {
+// 仮想上のピクセル
+const simulatedContentPixel = reactive({
+  width: 0,
+  height: 0,
+});
 
-      // ホストppi
-      this.host.ppi = this.CalcWitdhPpi(
-        this.host.pixel.width,
-        this.host.pixel.height,
-        this.host.DiagonalLength);
+const boxStyle = computed(() => {
+  return {
+    width: simulatedContentPixel.width + 'px',
+    height: simulatedContentPixel.height + 'px',
+    border: 'solid 1px',
+  };
+});
 
-      // コンテンツppi
-      this.content.ppi = this.CalcWitdhPpi(
-        this.content.pixel.width,
-        this.content.pixel.height,
-        this.content.DiagonalLength);
+// Vueマウント前イベント
+onBeforeMount(() => {
+  // ディスプレイの解像度をセット
+  host.width = window.parent.screen.width;
+  host.height = window.parent.screen.height;
 
-      // ppiの比を算出(縦ppiも同じ値なので、横ppiの比=縦ppiとする)
-      const ppiRate = this.host.ppi/this.content.ppi;
+  // 一応初期値でシミュレートしとく
+  simulateContentPixel();
+});
 
-      // ppiの比をコンテンツの解像度に掛けて、実サイズをシミュレート
-      this.simulatedContentPixel.width =this.content.pixel.width*ppiRate;
-      this.simulatedContentPixel.height =this.content.pixel.height*ppiRate;
-    },
-    /** 横のppiを算出 */
-    CalcWitdhPpi(widthPixel,heightPixel,diagonalLength) {
-      // 縦横の比から、角度を出す
-      const angle = Math.atan(heightPixel / widthPixel);
+/** コンテンツのサイズをシミュレートする */
+const simulateContentPixel = () => {
+  // ppiの比を算出(縦ppiも同じ値なので、横ppiの比=縦ppiとする)
+  const ppiRate = host.ppi / content.ppi;
 
-      // 角度から横の長さ(inch)を取得
-      const widthLenght = diagonalLength * Math.cos(angle);
-      const heightLenght = diagonalLength * Math.sin(angle);
-
-      // ppiを算出
-      return　widthPixel / widthLenght;
-    }
-  }
+  // ppiの比をコンテンツの解像度に掛けて、実サイズをシミュレート
+  simulatedContentPixel.width = content.width * ppiRate;
+  simulatedContentPixel.height = content.height * ppiRate;
 }
 </script>
+<style scoped>
+
+input {
+  width: 4rem;
+}
+
+.float {
+  position: fixed;
+  top: 0px;
+  background-color: #00000011;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.center {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+</style>
